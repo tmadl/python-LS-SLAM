@@ -2,7 +2,7 @@ from utils import t2v, v2t
 from solvers import *
 
 import numpy as np
-from scipy.sparse import csr_matrix, dok_matrix
+from scipy.sparse import csr_matrix
 from numpy.linalg import inv
 import time
 
@@ -134,15 +134,8 @@ class PoseGraph(object):
         
         H_sparse = csr_matrix(self.H) # coo_matrix
         
-        #dx = np.linalg.solve(self.H, self.b)
-        t1 = time.time()
         dx = spsolve(H_sparse, self.b)
-        #print "spsolve:",np.sum(dx),time.time()-t1
         #dx = gauss_seidel(H_sparse, self.b, np.random.random(len(dx)), sparse=True)
-        dx = gauss_seidel(H_sparse, self.b, np.array(dx)-[0.25]*len(dx)+np.random.random(len(dx))/2.0, sparse=True)
-        #print "gauss-seidel:",np.sum(dx),time.time()-t1
-        #ml = pyamg.ruge_stuben_solver(H_sparse)
-        #dx = ml.solve(self.b, tol=1e-300)
         
         dx[:3] = [0,0,0]
         dpose = np.reshape(dx, (len(self.nodes), 3))
