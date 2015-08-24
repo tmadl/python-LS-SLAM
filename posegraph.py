@@ -1,9 +1,8 @@
-import pyamg
+from utils import t2v, v2t
+from solvers import *
 
-from utils import *
 import numpy as np
-from scipy.sparse import *# csr_matrix
-from scipy.sparse.linalg import spsolve
+from scipy.sparse import csr_matrix, dok_matrix
 from numpy.linalg import inv
 import time
 
@@ -132,10 +131,14 @@ class PoseGraph(object):
         # which is equivalent to the following
         self.H[:3,:3] += np.eye(3)
         
-        H_sparse = dia_matrix(self.H) # coo_matrix
+        H_sparse = csr_matrix(self.H) # coo_matrix
         
         #dx = np.linalg.solve(self.H, self.b)
+        t1 = time.time()
         dx = spsolve(H_sparse, self.b)
+        print "spsolve:",np.sum(dx),time.time()-t1
+        dx = gauss_seidel(H_sparse, self.b, np.random.random(self.b.shape), sparse=True)
+        print "gauss-seidel:",np.sum(dx),time.time()-t1
         #ml = pyamg.ruge_stuben_solver(H_sparse)
         #dx = ml.solve(self.b, tol=1e-300)
         
