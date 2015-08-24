@@ -37,6 +37,7 @@ class PoseGraph(object):
         for i in range(edges.shape[0]):
             mean = edges[i, 2:5]
             infm = np.zeros((3,3), dtype=np.float64)
+            # edges[i, 5:11] ... upper-triangular block of the information matrix (inverse cov.matrix) in row-major order
             infm[0,0] = edges[i, 5]
             infm[1,0] = infm[0,1] = edges[i, 6]
             infm[1,1] = edges[i, 7]
@@ -136,9 +137,10 @@ class PoseGraph(object):
         #dx = np.linalg.solve(self.H, self.b)
         t1 = time.time()
         dx = spsolve(H_sparse, self.b)
-        print "spsolve:",np.sum(dx),time.time()-t1
-        dx = gauss_seidel(H_sparse, self.b, np.random.random(self.b.shape), sparse=True)
-        print "gauss-seidel:",np.sum(dx),time.time()-t1
+        #print "spsolve:",np.sum(dx),time.time()-t1
+        #dx = gauss_seidel(H_sparse, self.b, np.random.random(len(dx)), sparse=True)
+        dx = gauss_seidel(H_sparse, self.b, np.array(dx)-[0.25]*len(dx)+np.random.random(len(dx))/2.0, sparse=True)
+        #print "gauss-seidel:",np.sum(dx),time.time()-t1
         #ml = pyamg.ruge_stuben_solver(H_sparse)
         #dx = ml.solve(self.b, tol=1e-300)
         
