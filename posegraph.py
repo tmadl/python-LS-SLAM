@@ -14,27 +14,12 @@ class PoseEdge(object):
         self.mean = mean.flatten() if type(mean) == np.ndarray else mean # Predicted virtual measurement
         self.infm = infm # Information matrix of this edge
 
-
-class PoseNode(object):
-    def __init__(self, id = None, pose = None):
-        self.id   = id
-        self.pose = pose.flatten()
-        #self.x, self.y, self.yaw = self.pose
-    
-    # Transformation local to global
-    def rt(self):
-        R = np.array([[np.cos(self.pose[2]), -np.sin(self.pose[2]), self.pose[0]],
-                   [np.sin(self.pose[2]),  np.cos(self.pose[2]), self.pose[1]]], dtype=np.float64)
-        rt = np.vstack((R, [0,0,1]))
-        return rt
-
-
 class PoseGraph(object):
     #POSEGRAPH A class for doing pose graph optimization
     
     def __init__(self):
         # Constructor of PoseGraph
-        self.nodes = [] # Pose nodes in graph
+        self.nodes = [] # Pose nodes in graph. Each row has 3 values: x,y,yaw
         self.edges = [] # Edges in graph
         self.H = [] # Information matrix
         self.b = [] # Information vector
@@ -45,7 +30,8 @@ class PoseGraph(object):
         # vertex file
         vertices = np.loadtxt(vfile, usecols=range(1,5))
         for i in range(vertices.shape[0]):
-            self.nodes.append(PoseNode(vertices[i,0], vertices[i, 1:4]))
+            self.nodes.append(vertices[i, 1:4])
+        self.nodes = np.array(self.nodes, dtype=np.float64)
         
         # edge file
         edges = np.loadtxt(efile, usecols=range(1,12))
@@ -60,27 +46,11 @@ class PoseGraph(object):
             infm[1,2] = infm[2,1] = edges[i, 10]
             edge = PoseEdge(int(edges[i,0]), int(edges[i,1]), mean, infm)
             self.edges.append(edge)
-         
-        """   
-        import matplotlib.pyplot as plt
-        p = self.getposes()
-        plt.scatter(p[:, 0], p[:, 1])
-        es = []
-        for e in self.edges:
-            es.append([p[e.id_from, 0], p[e.id_from, 1]])
-            es.append([p[e.id_to, 0], p[e.id_to, 1]])
-        es = np.array(es)
-        plt.plot(es[:, 0], es[:,1])
-        plt.show(block=True)
-        """
-
-    def getposes(self):
-        return np.array([n.pose for n in self.nodes], dtype=np.float64)
     
     def plot(self, plt=None, title=''):
         if plt is not None:
-            poses = self.getposes()
-            plt.scatter(poses[:, 0], poses[:, 1])
+            plt.clf()
+            plt.scatter(self.nodes[:, 0], self.nodes[:, 1])
             plt.title(title)
             time.sleep(0.01)
             plt.draw()
@@ -115,8 +85,8 @@ class PoseGraph(object):
             omega = ei.infm
             
             # Get node information
-            v_i = self.nodes[i_node].pose
-            v_j = self.nodes[j_node].pose
+            v_i = self.nodes[i_node]
+            v_j = self.nodes[j_node]
             
             T_i = v2t(v_i)
             T_j = v2t(v_j)
@@ -162,16 +132,7 @@ class PoseGraph(object):
         # which is equivalent to the following
         self.H[:3,:3] += np.eye(3)
         
-        #import matplotlib.pyplot as plt2
-        #plt2.spy(self.H, markersize=1)
-        #plt2.show(block=True)
-        
-        #dx = H_sparse \ self.b;
-        
         H_sparse = dia_matrix(self.H) # coo_matrix
-        
-        import scipy.io
-        scipy.io.savemat('H'+str(i_iter)+'.mat', {'pyH': H_sparse})
         
         #dx = np.linalg.solve(self.H, self.b)
         dx = spsolve(H_sparse, self.b)
@@ -179,8 +140,6 @@ class PoseGraph(object):
         #dx = ml.solve(self.b, tol=1e-300)
         
         dx[:3] = [0,0,0]
-        dpose = np.reshape(dx, (3, len(self.nodes)))
+        dpose = np.reshape(dx, (len(self.nodes), 3))
         
-        # Update node with solution
-        for i_node in range(len(self.nodes)):
-            self.nodes[i_node].pose += dpose[:,i_node]
+        self.nodes += dpose # update
