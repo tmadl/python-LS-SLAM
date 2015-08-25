@@ -16,16 +16,17 @@ class PoseEdge(object):
 class PoseGraph(object):
     #POSEGRAPH A class for doing pose graph optimization
     
-    def __init__(self):
+    def __init__(self, verbose=True):
         # Constructor of PoseGraph
         self.nodes = [] # Pose nodes in graph. Each row has 3 values: x,y,yaw
         self.edges = [] # Edges in graph
         self.H = [] # Information matrix
         self.b = [] # Information vector
         # if x contains correct poses, then H*x = b
+        self.verbose = verbose
     
     def readGraph(self, vfile, efile):
-        # Reads graph from vertex and edge file
+        # Reads graph from vertex and edge file (g2o format - see https://github.com/RainerKuemmerle/g2o)
         # vertex file
         vertices = np.loadtxt(vfile, usecols=range(1,5))
         for i in range(vertices.shape[0]):
@@ -59,16 +60,16 @@ class PoseGraph(object):
         # Pose graph optimization
         
         for i_iter in range(n_iter):
-            print('Pose Graph Optimization, Iteration %d.\n' % i_iter)
+            if self.verbose: print('Pose Graph Optimization, Iteration %d.\n' % i_iter)
             
             # Create new H and b matrices each time
             self.H = np.zeros((len(self.nodes)*3,len(self.nodes)*3), dtype=np.float64)   # 3n x 3n square matrix
             self.b = np.zeros((len(self.nodes)*3,1), dtype=np.float64) # 3n x 1  column vector
             
-            print('Linearizing.\n')
+            if self.verbose: print('Linearizing.\n')
             self.linearize()
             
-            print ('Solving.\n')
+            if self.verbose: print ('Solving.\n')
             self.solve(i_iter)
             
             if plt is not None:
@@ -123,7 +124,7 @@ class PoseGraph(object):
 
     def solve(self, i_iter=0):
         # Solves the linear system and update all pose nodes
-        print('Poses: %d, Edges: %d\n', len(self.nodes), len(self.edges))
+        if self.verbose: print('Poses: %d, Edges: %d\n', len(self.nodes), len(self.edges))
         # The system (H b) is obtained only from relative constraints.
         # H is not full rank.
         # We solve this by anchoring the position of the 1st vertex
