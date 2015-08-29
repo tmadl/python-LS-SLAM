@@ -53,8 +53,8 @@ def getloops(points, loopmaxdist = 1, loopmininterval = 20):
             pindex.append(i)
     return loopedges
 
-ex, ey, ephi = 1e-2,1e-2,1e-2 # error standard deviations
-minex, miney, minephi = 1e-4,1e-4,1e-4 # min.error standard deviations
+ex, ey, ephi = 1e-1,1e-1,1e-1 # error standard deviations
+minex, miney, minephi = 1e-6,1e-6,1e-6 # min.error standard deviations (otherwise can't invert Sigma)
 def get_uncertainties_and_path(points,linear_uncertainty=ex,angular_uncertainty=ephi,ex=ex,ey=ey,ephi=ephi,minex=minex,miney=miney,minephi=minephi):
     prevtheta = 0
     uncertainties = [0]*(len(points)-1)
@@ -70,11 +70,14 @@ def get_uncertainties_and_path(points,linear_uncertainty=ex,angular_uncertainty=
             print e
             theta = 0
         dtheta = np.mod(theta - prevtheta + np.pi, np.pi*2) - np.pi
-                 
+         
+        sx = abs(dx)*ex+minex
+        sy = abs(dy)*ey+miney
+        st = abs(dtheta)*ephi+minephi
         csigma = [
-        [abs(dx)*ex+minex,0,0],
-        [0,abs(dy)*ey+miney,0],
-        [0,0,abs(dtheta)*ephi+minephi]
+        [sx**2,0,0],
+        [0,sy**2,0],
+        [0,0,st**2]
         ]
         uncertainties[i-1] = csigma
         prevtheta = theta
@@ -86,12 +89,17 @@ def get_uncertainties_and_path(points,linear_uncertainty=ex,angular_uncertainty=
         ctheta = path[-1][2] + dtheta
         path.append([path[-1][0]+v*np.cos(ctheta), path[-1][1]+v*np.sin(ctheta), ctheta])
         
+    sx = minex
+    sy = miney
+    st = minephi
     uncertainties.append([
-    [minex,0,0],
-    [0,miney,0],
-    [0,0,minephi]
+    [sx**2,0,0],
+    [0,sy**2,0],
+    [0,0,st**2]
     ])
-    return np.array(uncertainties), np.array(path)
+    path = np.array(path)
+    path -= path[0, :]
+    return np.array(uncertainties), path
 
 def readPoseGraph(pfile):
     # Reads graph from vertex and edge file (g2o format - see https://github.com/RainerKuemmerle/g2o)
